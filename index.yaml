@@ -2,11 +2,11 @@ apiVersion: v1
 entries:
   dkubex:
   - apiVersion: v2
-    created: "2023-04-05T14:25:05.732596057Z"
+    created: "2023-04-05T14:29:48.988062099Z"
     description: A Helm chart for Kubernetes
     digest: e9d2a3aea87e4b7c74537baa4323433aea8e4be7ce126d55e0a0e2eaf7ce3c0c
     name: dkubex
     urls:
-    - https://shashank-oc.github.io/helm-chart/dkubex-1.0.tgz
+    - https://github.com/shashank-oc/helm-chart/dkubex-1.0.tgz
     version: "1.0"
-generated: "2023-04-05T14:25:05.731768326Z"
+generated: "2023-04-05T14:29:48.987318196Z"
