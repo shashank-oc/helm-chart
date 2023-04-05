@@ -1,0 +1,1464 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+  name: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: v1
+imagePullSecrets:
+- name: docker-secret
+kind: ServiceAccount
+metadata:
+  name: d3x-controller
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: v1
+automountServiceAccountToken: true
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-admission
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-19.6.1
+    component: d3x
+    heritage: Helm
+    release: prometheus
+  name: prometheus-d3x
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx
+  namespace: {{ .Values.APP_NAMESPACE }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - pods
+  - secrets
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - update
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - ingress-controller-leader
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resourceNames:
+  - ingress-controller-leader
+  resources:
+  - leases
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-admission
+  namespace: {{ .Values.APP_NAMESPACE }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.APP_NAMESPACE }}-d3x-controller
+rules:
+- apiGroups:
+  - ""
+  - apps
+  - rbac.authorization.k8s.io
+  resources:
+  - nodes
+  - pods
+  - deployments
+  - deployments/status
+  - services
+  - secrets
+  - configmaps
+  - roles
+  - rolebindings
+  - replicasets
+  - namespaces
+  - persistentvolumes
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ray.io
+  resources:
+  - rayclusters
+  verbs:
+  - get
+  - list
+  - patch
+  - create
+  - update
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-{{ .Values.APP_NAMESPACE }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - nodes
+  - pods
+  - secrets
+  - namespaces
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - update
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-admission-{{ .Values.APP_NAMESPACE }}
+rules:
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-19.6.1
+    component: d3x
+    heritage: Helm
+    release: prometheus
+  name: prometheus-d3x
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - nodes/proxy
+  - nodes/metrics
+  - services
+  - endpoints
+  - pods
+  - ingresses
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - extensions
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx
+  namespace: {{ .Values.APP_NAMESPACE }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ingress-nginx
+subjects:
+- kind: ServiceAccount
+  name: ingress-nginx
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-admission
+  namespace: {{ .Values.APP_NAMESPACE }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ingress-nginx-admission
+subjects:
+- kind: ServiceAccount
+  name: ingress-nginx-admission
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.APP_NAMESPACE }}-d3x-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.APP_NAMESPACE }}-d3x-controller
+subjects:
+- kind: ServiceAccount
+  name: d3x-controller
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-{{ .Values.APP_NAMESPACE }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ingress-nginx-{{ .Values.APP_NAMESPACE }}
+subjects:
+- kind: ServiceAccount
+  name: ingress-nginx
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-admission-{{ .Values.APP_NAMESPACE }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ingress-nginx-admission-{{ .Values.APP_NAMESPACE }}
+subjects:
+- kind: ServiceAccount
+  name: ingress-nginx-admission
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-19.6.1
+    component: d3x
+    heritage: Helm
+    release: prometheus
+  name: prometheus-d3x
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-d3x
+subjects:
+- kind: ServiceAccount
+  name: prometheus-d3x
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: v1
+data:
+  allow-snippet-annotations: "true"
+  http-snippet: |
+    server {
+      listen 2443;
+      return 308 https://$host$request_uri;
+    }
+  proxy-real-ip-cidr: 192.168.0.0/16
+  use-forwarded-headers: "true"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-controller
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: v1
+data:
+  alerting_rules.yml: |
+    {}
+  alerts: |
+    {}
+  allow-snippet-annotations: "false"
+  prometheus.yml: |
+    global:
+      evaluation_interval: 1m
+      scrape_interval: 1m
+      scrape_timeout: 10s
+    rule_files: []
+    scrape_configs:
+    - honor_labels: true
+      job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+      - action: drop
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (\d+);(([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4})
+        replacement: '[$2]:$1'
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        - __meta_kubernetes_pod_ip
+        target_label: __address__
+      - action: replace
+        regex: (\d+);((([0-9]+?)(\.|$)){4})
+        replacement: $2:$1
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        - __meta_kubernetes_pod_ip
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: pod
+      - action: drop
+        regex: Pending|Succeeded|Failed|Completed
+        source_labels:
+        - __meta_kubernetes_pod_phase
+  recording_rules.yml: |
+    {}
+  rules: |
+    {}
+kind: ConfigMap
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-19.6.1
+    component: d3x
+    heritage: Helm
+    release: prometheus
+  name: prometheus-d3x
+  namespace: {{ .Values.APP_NAMESPACE }}
+---
+apiVersion: v1
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsidXNlcm5hbWUiOiJsdWNpZmVyMDAxIiwicGFzc3dvcmQiOiJsdWNpZmVyQGRrdWJlIiwiYXV0aCI6ImJIVmphV1psY2pBd01UcHNkV05wWm1WeVFHUnJkV0psIn19fQ==
+kind: Secret
+metadata:
+  name: docker-secret
+  namespace: {{ .Values.APP_NAMESPACE }}
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: d3x-controller
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  ports:
+  - name: backend
+    port: 8000
+    protocol: TCP
+    targetPort: 8000
+  - name: ui
+    port: 3000
+    protocol: TCP
+    targetPort: ui
+  - name: mlflow
+    port: 5000
+    protocol: TCP
+    targetPort: mlflow
+  selector:
+    app: d3x-controller
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "3600"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: {{ .Values.NGINX_SSL_CERT }}
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
+    service.beta.kubernetes.io/aws-load-balancer-internal: {{ .Values.IS_INTERNAL_LB }}
+    #service.beta.kubernetes.io/aws-load-balancer-subnets: xxx
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-controller
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  externalTrafficPolicy: Local
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - appProtocol: http
+    name: http
+    port: 80
+    protocol: TCP
+    targetPort: tohttps
+  - appProtocol: https
+    name: https
+    {{ if .Values.loadbalancer }}
+    {{ else }}
+    nodePort: 32443
+    {{ end }}
+    port: 443
+    protocol: TCP
+    {{ if .Values.loadbalancer }}
+    targetPort: http
+    {{ else }}
+    targetPort: https
+    {{ end }}
+  selector:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+  {{ if .Values.loadbalancer }}
+  type: LoadBalancer
+  {{ else }}
+  type: NodePort
+  {{ end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-controller-admission
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  ports:
+  - appProtocol: https
+    name: https-webhook
+    port: 443
+    targetPort: webhook
+  - appProtocol: http
+    name: metrics
+    port: 10254
+    targetPort: 10254
+  selector:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernetes-dashboard
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  externalName: kubernetes-dashboard.kubernetes-dashboard.svc.cluster.local
+  type: ExternalName
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-19.6.1
+    component: d3x
+    heritage: Helm
+    release: prometheus
+  name: prometheus-d3x
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app: prometheus
+    component: d3x
+    release: prometheus
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.APP_NAMESPACE }}-home
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 100Gi
+  mountOptions:
+  - nfsvers=4.1
+  - rsize=1048576
+  - wsize=1048576
+  - hard
+  - timeo=600
+  - retrans=2
+  - noresvport
+  nfs:
+    path: {{ .Values.NFS_PATH }}
+    readOnly: false
+    server: {{ .Values.NFS_SERVER }}
+  persistentVolumeReclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: home
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 100G
+  storageClassName: ""
+  volumeMode: Filesystem
+  volumeName: {{ .Values.APP_NAMESPACE }}-home
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: d3x-controller
+  name: d3x-controller
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: d3x-controller
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+      labels:
+        app: d3x-controller
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      containers:
+      - command:
+        - uvicorn
+        - d3x.main:app
+        - --host
+        - 0.0.0.0
+        - --proxy-headers
+        - --reload
+        - --reload-dir
+        - ./d3x
+        env:
+        - name: NFS_SHARE
+          value: "{{ .Values.NFS_SERVER }}:{{ .Values.NFS_PATH }}"
+        - name: DATABASE_URL
+          value: {{ .Values.DATABASE_URL_VALUE }}
+        - name: OAUTH
+          value: disabled
+        - name: CLUSTER
+          value: {{ .Values.CLUSTER_NAME }}
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: REGISTRY_PREFIX
+          value: {{ .Values.REG_PREFIX }}
+        - name: RELEASE_TAG
+          value: {{ .Values.IMAGE_TAG }}
+        - name: DEV_ENV
+          {{ if hasPrefix "sqlite" .Values.DATABASE_URL_VALUE }}
+          value: "true"
+          {{ else }}
+          value: "false"
+          {{ end }}
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: admin-password
+        image: ocdr/d3x-controller:{{ .Values.IMAGE_TAG }}
+        imagePullPolicy: {{ .Values.IMAGE_PULL_POLICY }}
+        name: backend
+        ports:
+        - containerPort: 8000
+          name: backend
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1000Mi
+          requests:
+            cpu: 100m
+            memory: 1000Mi
+        volumeMounts:
+        - mountPath: /var/lib/sss/pipes
+          name: sssd-dir
+        - mountPath: /home
+          name: home
+      - command:
+        - node
+        - /code/ui/build/index.js
+        image: ocdr/d3x-controller:{{ .Values.IMAGE_TAG }}
+        imagePullPolicy: {{ .Values.IMAGE_PULL_POLICY }}
+        name: ui
+        ports:
+        - containerPort: 3000
+          name: ui
+        resources:
+          limits:
+            cpu: 100m
+            memory: 400Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+      - command:
+        - bash
+        - -c
+        - ls d3x/watcher.py | entr -nr python3 -u d3x/watcher.py
+        env:
+        - name: DATABASE_URL
+          value: {{ .Values.DATABASE_URL_VALUE }}
+        - name: DD_TRACE_ENABLED
+          value: "false"
+        image: ocdr/d3x-controller:{{ .Values.IMAGE_TAG }}
+        imagePullPolicy: {{ .Values.IMAGE_PULL_POLICY }}
+        name: watcher
+        resources:
+          limits:
+            cpu: 200m
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /home
+          name: home
+      - command:
+        - bash
+        - -c
+        - ls d3x/metrics.py | entr -nr python3 -u d3x/metrics.py
+        env:
+        - name: DATABASE_URL
+          value: {{ .Values.DATABASE_URL_VALUE }}
+        - name: CLUSTER
+          value: {{ .Values.CLUSTER_NAME }}
+        - name: DD_TRACE_ENABLED
+          value: "false"
+        image: ocdr/d3x-controller:{{ .Values.IMAGE_TAG }}
+        imagePullPolicy: {{ .Values.IMAGE_PULL_POLICY }}
+        name: metrics-exporter
+        resources:
+          limits:
+            cpu: 200m
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /home
+          name: home
+      - command:
+        - mlflow
+        - server
+        - --host
+        - 0.0.0.0
+        - --backend-store-uri
+        - {{ .Values.DATABASE_URL_VALUE }}
+        - --artifacts-destination
+        - /home/d3x/mlartifacts
+        image: ocdr/mlflow-server:2.2.2
+        imagePullPolicy: Always
+        name: mlflow-server
+        ports:
+        - containerPort: 5000
+          name: mlflow
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+          requests:
+            cpu: 100m
+            memory: 500Mi
+        volumeMounts:
+        - mountPath: /home
+          name: home
+      restartPolicy: Always
+      serviceAccountName: d3x-controller
+      volumes:
+      - hostPath:
+          path: /var/lib/ubernetes
+          type: DirectoryOrCreate
+        name: sssd-dir
+      - name: home
+        persistentVolumeClaim:
+          claimName: home
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-controller
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  minReadySeconds: 0
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/instance: ingress-nginx
+      app.kubernetes.io/name: ingress-nginx
+  template:
+    metadata:
+      annotations:
+        ad.datadoghq.com/controller.checks: |
+          {
+            "nginx_ingress_controller": {
+              "init_config": {},
+              "instances": [
+                {
+                  "prometheus_url":"http://%%host%%:10254/metrics",
+                  "collect_nginx_histograms": "true",
+                  "exclude_labels": ["canary","controller_class","controller_pod","service","path","method","controller_namespace"],
+                }
+              ]
+            }
+          }
+        ad.datadoghq.com/controller.logs: '[{"service": "controller", "source": "nginx-ingress-controller"}]'
+        ad.datadoghq.com/controller.tags: '{"namespace": "{{ .Values.APP_NAMESPACE }}", "cluster":
+          "{{ .Values.CLUSTER_NAME }}"}'
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+      labels:
+        app.kubernetes.io/component: controller
+        app.kubernetes.io/instance: ingress-nginx
+        app.kubernetes.io/name: ingress-nginx
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      containers:
+      - args:
+        - /nginx-ingress-controller
+        - --publish-service=$(POD_NAMESPACE)/ingress-nginx-controller
+        - --election-id=ingress-controller-leader
+        - --controller-class=k8s.io/ingress-nginx-{{ .Values.APP_NAMESPACE }}
+        - --ingress-class={{ .Values.APP_NAMESPACE }}
+        - --configmap=$(POD_NAMESPACE)/ingress-nginx-controller
+        - --validating-webhook=:8443
+        - --validating-webhook-certificate=/usr/local/certificates/cert
+        - --validating-webhook-key=/usr/local/certificates/key
+        - --metrics-per-host=false
+        - --length-buckets=100
+        - --size-buckets=1
+        - --time-buckets=1
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: LD_PRELOAD
+          value: /usr/local/lib/libmimalloc.so
+        image: registry.k8s.io/ingress-nginx/controller:v1.3.0@sha256:d1707ca76d3b044ab8a28277a2466a02100ee9f58a86af1535a3edf9323ea1b5
+        imagePullPolicy: IfNotPresent
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /wait-shutdown
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: 10254
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: controller
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        - containerPort: 443
+          name: https
+          protocol: TCP
+        - containerPort: 2443
+          name: tohttps
+          protocol: TCP
+        - containerPort: 8443
+          name: webhook
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 10254
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          requests:
+            cpu: 100m
+            memory: 90Mi
+        securityContext:
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+            - NET_BIND_SERVICE
+            drop:
+            - ALL
+          runAsUser: 101
+        volumeMounts:
+        - mountPath: /usr/local/certificates/
+          name: webhook-cert
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: ingress-nginx
+      terminationGracePeriodSeconds: 300
+      volumes:
+      - name: webhook-cert
+        secret:
+          secretName: ingress-nginx-admission
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-19.6.1
+    component: d3x
+    heritage: Helm
+    release: prometheus
+  name: prometheus-d3x
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: d3x
+      release: prometheus
+  strategy:
+    rollingUpdate: null
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        chart: prometheus-19.6.1
+        component: d3x
+        heritage: Helm
+        release: prometheus
+    spec:
+      containers:
+      - args:
+        - --storage.tsdb.retention.time=15d
+        - --config.file=/etc/config/prometheus.yml
+        - --storage.tsdb.path=/data
+        - --web.console.libraries=/etc/prometheus/console_libraries
+        - --web.console.templates=/etc/prometheus/consoles
+        - --web.enable-lifecycle
+        image: quay.io/prometheus/prometheus:v2.41.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /-/healthy
+            port: 9090
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 10
+        name: prometheus-d3x
+        ports:
+        - containerPort: 9090
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /-/ready
+            port: 9090
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 4
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/config
+          name: config-volume
+        - mountPath: /data
+          name: storage-volume
+          subPath: ""
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      imagePullSecrets:
+      - name: docker-secret
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      serviceAccountName: prometheus-d3x
+      terminationGracePeriodSeconds: 300
+      volumes:
+      - configMap:
+          name: prometheus-d3x
+        name: config-volume
+      - emptyDir: {}
+        name: storage-volume
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-admission-create
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: admission-webhook
+        app.kubernetes.io/instance: ingress-nginx
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/part-of: ingress-nginx
+        app.kubernetes.io/version: 1.3.0
+      name: ingress-nginx-admission-create
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      containers:
+      - args:
+        - create
+        - --host=ingress-nginx-controller-admission,ingress-nginx-controller-admission.$(POD_NAMESPACE).svc
+        - --namespace=$(POD_NAMESPACE)
+        - --secret-name=ingress-nginx-admission
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.3.0@sha256:549e71a6ca248c5abd51cdb73dbc3083df62cf92ed5e6147c780e30f7e007a47
+        imagePullPolicy: IfNotPresent
+        name: create
+        securityContext:
+          allowPrivilegeEscalation: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: OnFailure
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 2000
+      serviceAccountName: ingress-nginx-admission
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-admission-patch
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: admission-webhook
+        app.kubernetes.io/instance: ingress-nginx
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/part-of: ingress-nginx
+        app.kubernetes.io/version: 1.3.0
+      name: ingress-nginx-admission-patch
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      containers:
+      - args:
+        - patch
+        - --webhook-name=ingress-nginx-admission
+        - --namespace=$(POD_NAMESPACE)
+        - --patch-mutating=false
+        - --secret-name=ingress-nginx-admission
+        - --patch-failure-policy=Fail
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.3.0@sha256:549e71a6ca248c5abd51cdb73dbc3083df62cf92ed5e6147c780e30f7e007a47
+        imagePullPolicy: IfNotPresent
+        name: patch
+        securityContext:
+          allowPrivilegeEscalation: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: OnFailure
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 2000
+      serviceAccountName: ingress-nginx-admission
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: d3x-controller-admin
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  ingressClassName: {{ .Values.APP_NAMESPACE }}
+  rules:
+  - host: {{ .Values.INGRESS_HOST }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: d3x-controller
+            port:
+              name: backend
+        path: /api/admin
+        pathType: Prefix
+      - backend:
+          service:
+            name: d3x-controller
+            port:
+              name: ui
+        path: /admin
+        pathType: Prefix
+      - backend:
+          service:
+            name: d3x-controller
+            port:
+              name: ui
+        path: /_app
+        pathType: Prefix
+      - backend:
+          service:
+            name: d3x-controller
+            port:
+              name: ui
+        path: /favicon.ico
+        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/auth-response-headers: Authorization, X-Auth-Request-Email
+  labels:
+    app-namespace: {{ .Values.APP_NAMESPACE }}
+    oauth: required
+  name: d3x-controller-backend
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  ingressClassName: {{ .Values.APP_NAMESPACE }}
+  rules:
+  - host: {{ .Values.INGRESS_HOST }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: d3x-controller
+            port:
+              name: backend
+        path: /api/ds
+        pathType: Prefix
+      - backend:
+          service:
+            name: d3x-controller
+            port:
+              name: ui
+        path: /
+        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  name: dashboard
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  ingressClassName: {{ .Values.APP_NAMESPACE }}
+  rules:
+  - host: {{ .Values.INGRESS_HOST }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: kubernetes-dashboard
+            port:
+              number: 443
+        path: /dashboard(/|$)(.*)
+        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/auth-response-headers: Authorization, X-Auth-Request-Email
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  labels:
+    app-namespace: {{ .Values.APP_NAMESPACE }}
+    oauth: required
+  name: mlflow
+  namespace: {{ .Values.APP_NAMESPACE }}
+spec:
+  ingressClassName: {{ .Values.APP_NAMESPACE }}
+  rules:
+  - host: {{ .Values.INGRESS_HOST }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: d3x-controller
+            port:
+              name: mlflow
+        path: /mlflow(/|$)(.*)
+        pathType: Prefix
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: {{ .Values.APP_NAMESPACE }}
+spec:
+  controller: k8s.io/ingress-nginx-{{ .Values.APP_NAMESPACE }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.3.0
+  name: ingress-nginx-admission
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: ingress-nginx-controller-admission
+      namespace: {{ .Values.APP_NAMESPACE }}
+      path: /networking/v1/ingresses
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: validate.nginx.ingress.kubernetes.io
+  rules:
+  - apiGroups:
+    - networking.k8s.io
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - ingresses
+  sideEffects: None
+---
+apiVersion: v1
+data:
+  password: {{ randAlphaNum 32 | nospace | b64enc }}
+kind: Secret
+metadata:
+  name: admin-password
+  namespace:  {{ .Values.APP_NAMESPACE }}
+type: Opaque

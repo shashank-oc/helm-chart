@@ -1,0 +1,17 @@
+# Default values for dkubex.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+APP_NAMESPACE:
+NFS_SERVER: 
+NFS_PATH: 
+DATABASE_URL_VALUE: "sqlite:////home/sql_app.db"
+IMAGE_TAG: "rel2"
+CLUSTER_NAME: 
+REG_PREFIX: ""
+NGINX_SSL_CERT: "arn:aws:acm:us-west-2:555911394411:certificate/d137bebd-0ce0-4bfa-84af-da8fcd13da46"
+IMAGE_PULL_POLICY: "IfNotPresent"
+IS_INTERNAL_LB: "'false'"
+INGRESS_HOST: ""
+#aws-load-balancer-subnets: 
+loadbalancer: false
